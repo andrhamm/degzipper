@@ -1,6 +1,8 @@
 # Degzipper
 Rack middleware to inflate incoming Gzip data from HTTP requests.
 
+[![Code Climate](https://codeclimate.com/github/andrhamm/degzipper.png)](https://codeclimate.com/github/andrhamm/degzipper)
+
 ## Getting Started
 Degzipper is a Rack Middleware. That means that you can use it the same way that you use any other Rack middleware. For example, to use in a Sinatra application I might do this:
 
