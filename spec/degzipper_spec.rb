@@ -60,4 +60,21 @@ RSpec.describe Degzipper::Middleware do
       'length' => 5
     )
   end
+
+  it 'sets the correct content length for UTF-8 content' do
+    _, _, body = middleware.call(Rack::MockRequest.env_for(
+      '/',
+      method: 'POST',
+      input: gzip('你好'),
+      'HTTP_CONTENT_ENCODING' => 'gzip'
+    ))
+
+    parsed_body = JSON.parse(body.first)
+
+    expect(parsed_body).to eq(
+      'body' => '你好',
+      'content_encoding' => nil,
+      'length' => 6
+    )
+  end
 end
