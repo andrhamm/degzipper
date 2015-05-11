@@ -17,7 +17,7 @@ module Degzipper
         extracted = decode(env['rack.input'], env['HTTP_CONTENT_ENCODING'])
 
         env.delete('HTTP_CONTENT_ENCODING')
-        env['CONTENT_LENGTH'] = extracted.length
+        env['CONTENT_LENGTH'] = extracted.bytesize
         env['rack.input'] = StringIO.new(extracted)
       end
 
