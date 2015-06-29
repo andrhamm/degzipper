@@ -4,14 +4,15 @@ require 'rack'
 require 'zlib'
 
 RSpec.describe Degzipper::Middleware do
-  def gzip(content)
-    string_io = StringIO.new
+  def make_request(input, encoding)
+    body = middleware.call(Rack::MockRequest.env_for(
+      '/',
+      method: 'POST',
+      input: input,
+      'HTTP_CONTENT_ENCODING' => encoding
+    ))[2]
 
-    gz = Zlib::GzipWriter.new(string_io)
-    gz.write content
-    gz.close
-
-    string_io.string
+    JSON.parse(body)
   end
 
   let(:middleware) do
@@ -24,57 +25,73 @@ RSpec.describe Degzipper::Middleware do
         length: req.content_length.to_i
       )
 
-      [200, {}, [body]]
+      [200, {}, body]
     end)
   end
 
   it 'passes through a non-gzipped request body' do
-    _, _, body = middleware.call(Rack::MockRequest.env_for(
-      '/',
-      method: 'POST',
-      input: 'hello'
-    ))
+    resp = make_request('hello', nil)
 
-    parsed_body = JSON.parse(body.first)
-
-    expect(parsed_body).to eq(
+    expect(resp).to eq(
       'body' => 'hello',
       'content_encoding' => nil,
       'length' => 5
     )
   end
 
-  it 'extracts a gzipped request body' do
-    _, _, body = middleware.call(Rack::MockRequest.env_for(
-      '/',
-      method: 'POST',
-      input: gzip('hello'),
-      'HTTP_CONTENT_ENCODING' => 'gzip'
-    ))
+  shared_examples_for 'a compression' do |type|
+    it 'extracts a compressed request body' do
+      resp = make_request(compress('hello'), type)
 
-    parsed_body = JSON.parse(body.first)
+      expect(resp).to eq(
+        'body' => 'hello',
+        'content_encoding' => nil,
+        'length' => 5
+      )
+    end
 
-    expect(parsed_body).to eq(
-      'body' => 'hello',
-      'content_encoding' => nil,
-      'length' => 5
-    )
+    it 'sets the correct content length for UTF-8 content' do
+      resp = make_request(compress('你好'), type)
+
+      expect(resp).to eq(
+        'body' => '你好',
+        'content_encoding' => nil,
+        'length' => 6
+      )
+    end
   end
 
-  it 'sets the correct content length for UTF-8 content' do
-    _, _, body = middleware.call(Rack::MockRequest.env_for(
-      '/',
-      method: 'POST',
-      input: gzip('你好'),
-      'HTTP_CONTENT_ENCODING' => 'gzip'
-    ))
+  context 'gzip' do
+    it_behaves_like 'a compression', 'gzip'
 
-    parsed_body = JSON.parse(body.first)
+    def compress(content)
+      string_io = StringIO.new
 
-    expect(parsed_body).to eq(
-      'body' => '你好',
-      'content_encoding' => nil,
-      'length' => 6
-    )
+      gz = Zlib::GzipWriter.new(string_io)
+      gz.write content
+      gz.close
+
+      string_io.string
+    end
+  end
+
+
+  context 'zlib' do
+    it_behaves_like 'a compression', 'zlib'
+
+    def compress(content)
+      Zlib::Deflate.deflate(content)
+    end
+  end
+
+  context 'deflate' do
+    it_behaves_like 'a compression', 'deflate'
+
+    def compress(content)
+      stream = Zlib::Deflate.new(Zlib::DEFAULT_COMPRESSION, -Zlib::MAX_WBITS)
+      result = stream.deflate(content, Zlib::FINISH)
+      stream.close
+      result
+    end
   end
 end

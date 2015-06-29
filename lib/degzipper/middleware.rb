@@ -23,13 +23,19 @@ module Degzipper
     end
 
     def encoding_handled?(encoding)
-      ['gzip', 'deflate'].include? encoding
+      ['gzip', 'zlib', 'deflate'].include? encoding
     end
 
     def decode(input, content_encoding)
       case content_encoding
         when 'gzip' then Zlib::GzipReader.new(input).read
-        when 'deflate' then Zlib::Inflate.inflate(input.read)
+        when 'zlib' then Zlib::Inflate.inflate(input.string)
+        when 'deflate'
+          stream = Zlib::Inflate.new(-Zlib::MAX_WBITS)
+          content = stream.inflate(input.string)
+          stream.finish
+          stream.close
+          content
       end
     end
   end
