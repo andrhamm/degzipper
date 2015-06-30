@@ -27,12 +27,15 @@ module Degzipper
     end
 
     def decode(input, content_encoding)
+      # type of input depends on CONTENT_LENGTH
+      # if CONTENT_LENGTH < 20k it's StringIO; if more it's Tempfile
+      # that's why use only common methods of these types
       case content_encoding
         when 'gzip' then Zlib::GzipReader.new(input).read
-        when 'zlib' then Zlib::Inflate.inflate(input.string)
+        when 'zlib' then Zlib::Inflate.inflate(input.read)
         when 'deflate'
           stream = Zlib::Inflate.new(-Zlib::MAX_WBITS)
-          content = stream.inflate(input.string)
+          content = stream.inflate(input.read)
           stream.finish
           stream.close
           content
