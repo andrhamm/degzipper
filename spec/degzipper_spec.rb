@@ -59,6 +59,20 @@ RSpec.describe Degzipper::Middleware do
         'length' => 6
       )
     end
+
+    it 'handles a tmp files as well' do
+      Tempfile.open('degzipper') do |stream|
+        stream << compress('hello')
+        stream.rewind
+        resp = make_request(stream, type)
+
+        expect(resp).to eq(
+          'body' => 'hello',
+          'content_encoding' => nil,
+          'length' => 5
+        )
+      end
+    end
   end
 
   context 'gzip' do
